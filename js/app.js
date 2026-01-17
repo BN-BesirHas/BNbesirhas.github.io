@@ -1,42 +1,57 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <title>besirhas</title>
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+const MY_ID = "besirhas";
+const peer = new Peer(MY_ID);
 
-<div class="layout">
+let conn;
+let stream;
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo">besirhas</div>
+peer.on("open", () => {
+  document.getElementById("status").innerText = "Online";
+});
 
-    <input id="targetId" placeholder="Kullanıcı adı (besirhas)">
-    <button onclick="connectUser()">Bağlan</button>
+peer.on("connection", c => {
+  conn = c;
+  document.getElementById("status").innerText = "Bağlandı";
 
-    <div class="status" id="status">Offline</div>
-  </aside>
+  conn.on("data", msg => {
+    addMessage("Arkadaş", msg);
+  });
+});
 
-  <!-- CHAT -->
-  <main class="chat-area">
-    <div class="chat-header">
-      <span>Özel Sohbet</span>
-      <button onclick="startVoice()">🎤</button>
-    </div>
+function connectUser() {
+  const id = document.getElementById("targetId").value;
+  if (!id) return;
 
-    <div id="messages" class="messages"></div>
+  conn = peer.connect(id);
 
-    <div class="chat-input">
-      <input id="messageInput" placeholder="Mesaj yaz...">
-      <button onclick="sendMessage()">Gönder</button>
-    </div>
-  </main>
+  conn.on("open", () => {
+    document.getElementById("status").innerText = "Bağlandı";
+  });
 
-</div>
+  conn.on("data", msg => addMessage("Arkadaş", msg));
+}
 
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="js/app.js"></script>
-</body>
-</html>
+function sendMessage() {
+  const input = document.getElementById("messageInput");
+  if (!conn || input.value === "") return;
+
+  conn.send(input.value);
+  addMessage("Sen", input.value);
+  input.value = "";
+}
+
+function addMessage(sender, text) {
+  const div = document.createElement("div");
+  div.className = "message";
+  div.innerHTML = `<span>${sender}:</span> ${text}`;
+  document.getElementById("messages").appendChild(div);
+}
+
+async function startVoice() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  const call = peer.call(conn.peer, stream);
+
+  peer.on("call", call => {
+    call.answer(stream);
+  });
+}
